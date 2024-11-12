@@ -1,0 +1,72 @@
+# .github/workflows/ci-cd.yml
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # 1. Etapa de build
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (o el entorno adecuado para tu proyecto)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+  # 2. Etapa de Docker
+  docker:
+    needs: build # Solo ejecuta si build es exitoso
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Log in to Amazon ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: 'us-east-1' # Cambia la región si es necesario
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin 744988023230.dkr.ecr.$AWS_REGION.amazonaws.com
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-app:${{ github.sha }} .
+          docker tag my-app:${{ github.sha }} 744988023230.dkr.ecr.$AWS_REGION.amazonaws.com/my-app:${{ github.sha }}
+
+      - name: Push to Amazon ECR
+        run: |
+          docker push 744988023230.dkr.ecr.$AWS_REGION.amazonaws.com/my-app:${{ github.sha }}
+
+  # 3. Etapa de Deploy
+  deploy:
+    needs: docker # Solo ejecuta si docker es exitoso
+    runs-on: ubuntu-latest
+    environment: TEST
+    if: github.ref == 'refs/heads/main' # Opcional: solo para el branch principal
+    steps:
+      - name: SSH into EC2 and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu # Cambia si usas otro usuario
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull 744988023230.dkr.ecr.$AWS_REGION.amazonaws.com/my-app:${{ github.sha }}
+            docker stop my-app || true
+            docker rm my-app || true
+            docker run -d --name my-app -p 80:80 744988023230.dkr.ecr.$AWS_REGION.amazonaws.com/my-app:${{ github.sha }}

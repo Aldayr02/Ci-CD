@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Registration</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f0f0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+      }
+      input,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="loginPage">
+      <h1>Login</h1>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+    </div>
+
+    <div class="container" id="userRegistrationPage" style="display: none">
+      <h1>User Registration</h1>
+      <input type="text" id="newUsername" placeholder="New Username" />
+      <input type="password" id="newPassword" placeholder="New Password" />
+      <input type="text" id="newPhone" placeholder="New Phone Number" />
+      <button onclick="addUser()">Add User</button>
+      <table id="userTable">
+        <tr>
+          <th>Username</th>
+          <th>Phone Number</th>
+        </tr>
+      </table>
+    </div>
+
+    <script>
+      const loginApiUrl = 'http://100.29.7.56:3001/users/login';
+      const addUserApiUrl = 'http://100.29.7.56:3001/users'; // Ruta para agregar un nuevo usuario
+
+      // Función de login que llama a la API externa
+      async function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        try {
+          const response = await fetch(loginApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+          });
+
+          const data = await response.json();
+
+          // Debug: Verifica la respuesta de la API
+          console.log('Response:', response);
+          console.log('Data:', data);
+
+          if (response.ok) {
+            localStorage.setItem('token', data.token);
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('userRegistrationPage').style.display = 'block';
+            loadUsers();
+          } else {
+            alert(data.message || 'Login failed');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error logging in');
+        }
+      }
+
+      // Función para cargar los usuarios desde la API externa
+      async function loadUsers() {
+        try {
+          const response = await fetch('http://100.29.7.56:3001/users', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const users = await response.json();
+
+          if (response.ok) {
+            const table = document.getElementById('userTable');
+            users.forEach((user) => {
+              const row = table.insertRow(-1);
+              const cell1 = row.insertCell(0);
+              const cell2 = row.insertCell(1);
+              cell1.textContent = user.username; // Cambia 'user.username' según tu API
+              cell2.textContent = user.phone; // Cambia 'user.phone' según tu API
+            });
+          } else {
+            alert('Failed to load users');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error loading users');
+        }
+      }
+
+      // Función para añadir un nuevo usuario
+      async function addUser() {
+        const newUsername = document.getElementById('newUsername').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const newPhone = document.getElementById('newPhone').value;
+
+        if (newUsername && newPassword && newPhone) {
+          try {
+            const response = await fetch(addUserApiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                username: newUsername,
+                password: newPassword,
+                phone: newPhone,
+              }),
+            });
+
+            if (response.ok) {
+              const user = await response.json(); // O el método que uses para obtener la información del nuevo usuario
+              const table = document.getElementById('userTable');
+              const row = table.insertRow(-1);
+              const cell1 = row.insertCell(0);
+              const cell2 = row.insertCell(1);
+              cell1.textContent = user.username; // Asegúrate de que sea el campo correcto
+              cell2.textContent = user.phone; // Asegúrate de que sea el campo correcto
+              document.getElementById('newUsername').value = '';
+              document.getElementById('newPassword').value = '';
+              document.getElementById('newPhone').value = '';
+            } else {
+              const data = await response.json();
+              alert(data.message || 'Failed to add user');
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert('Error adding user');
+          }
+        } else {
+          alert('Please fill in all fields');
+        }
+      }
+    </script>
+  </body>
+</html>
