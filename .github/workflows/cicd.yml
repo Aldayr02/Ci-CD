@@ -49,11 +49,11 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t my-app:${{ github.sha }} .
-          docker tag my-app:${{ github.sha }} 744988023230.dkr.ecr.us-east-1.amazonaws.com/my-app:${{ github.sha }}
+          docker tag my-app:${{ github.sha }} 744988023230.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:${{ github.sha }}
 
       - name: Push to Amazon ECR
         run: |
-          docker push 744988023230.dkr.ecr.us-east-1.amazonaws.com/my-app:${{ github.sha }}
+          docker push 744988023230.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:${{ github.sha }}
 
   deploy:
     needs: docker
@@ -68,7 +68,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker pull 744988023230.dkr.ecr.us-east-1.amazonaws.com/my-app:${{ github.sha }}
+            docker pull 744988023230.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:${{ github.sha }}
             docker stop my-app || true
             docker rm my-app || true
-            docker run -d --name my-app -p 80:80 744988023230.dkr.ecr.us-east-1.amazonaws.com/my-app:${{ github.sha }}
+            docker run -d --name my-app -p 80:80 744988023230.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:${{ github.sha }}
